@@ -62,11 +62,14 @@ class SheriffCommandConsole(gtk.ScrolledWindow):
         # add callback so we can add a clear option to the default right click popup
         self.stdout_textview.connect ("populate-popup", self.on_tb_populate_menu)
 
+        # to search for text
+        self.stdout_textview.connect ("key-press-event", self.on_key_pressed)
+
         # set some default appearance parameters
         self.font_str = "Monospace 10"
         self.set_font(self.font_str)
-        self.base_color = gtk.gdk.Color(65535, 65535, 65535)
-        self.text_color = gtk.gdk.Color(0, 0, 0)
+        self.text_color = gtk.gdk.Color(65535, 65535, 65535)
+        self.base_color = gtk.gdk.Color(0, 0, 0)
         self.set_background_color(self.base_color)
         self.set_text_color(self.text_color)
 
@@ -81,11 +84,42 @@ class SheriffCommandConsole(gtk.ScrolledWindow):
 
         lc.subscribe ("PMD_PRINTF", self.on_procman_printf)
 
+        self.clear_tag = self.sheriff_tb.create_tag("clear", background = self.get_background_color(), foreground = self.get_text_color())
         self.text_tags = { "normal" : gtk.TextTag("normal") }
+        self.found_text_tag = self.sheriff_tb.create_tag("found_text", background = gtk.gdk.Color(20000, 20000, 0), foreground = self.get_text_color())
         for tt in self.text_tags.values():
             self.sheriff_tb.get_tag_table().add(tt)
 
         self.set_output_rate_limit(DEFAULT_MAX_KB_PER_SECOND)
+        self.current_search_text = ""
+        self.search_whole_text = False
+        self.current_tb = self.sheriff_tb 
+
+    def clear_highlight(self, tb):
+        tb.remove_tag(
+            self.found_text_tag,
+            tb.get_start_iter(),
+            tb.get_end_iter()
+        )
+
+    def highlight_text_whole(self, search_text, tb, start_iter=None):
+        if start_iter is None:
+            start_iter =  tb.get_start_iter()
+        found = start_iter.forward_search(search_text, 0, None) 
+        while found:
+            match_start, match_end = found
+            tb.apply_tag(self.found_text_tag, match_start, match_end)
+            found = match_end.forward_search(search_text, 0, None) 
+
+    def highlight_text(self, search_text, tb, start_iter=None):
+        if search_text == "" or search_text is None:
+            self.clear_highlight(tb)
+        else:
+            if self.search_whole_text:
+                self.highlight_text_whole(search_text, tb, start_iter)
+            else:
+                for text in search_text.split():
+                    self.highlight_text_whole(text, tb, start_iter)
 
     def get_background_color(self):
         return self.base_color
@@ -166,6 +200,9 @@ class SheriffCommandConsole(gtk.ScrolledWindow):
                     pass
             end_iter = tb.get_end_iter()
             tb.insert_with_tags(end_iter, seg, tag)
+            end_iter = tb.get_end_iter()
+            end_iter.backward_chars(len(seg))
+            self.highlight_text(self.current_search_text, tb, start_iter=end_iter)
 
         # toss out old text if the muffer is getting too big
         num_lines = tb.get_line_count ()
@@ -272,6 +309,29 @@ class SheriffCommandConsole(gtk.ScrolledWindow):
         extradata = self._cmd_extradata.get(cmd, None)
         if extradata:
             self.stdout_textview.set_buffer (extradata.tb)
+            self.highlight_text(self.current_search_text, extradata.tb)
+            self.current_tb = extradata.tb
 
     def show_sheriff_buffer(self):
         self.stdout_textview.set_buffer (self.sheriff_tb)
+
+    def on_key_pressed(self, widget, event):
+        offset = self.sheriff_tb.get_property('cursor-position')
+        current_iter = self.sheriff_tb.get_iter_at_offset(offset)
+        if gtk.gdk.keyval_name(event.keyval) == 'n':
+            done = False
+            while not done and not current_iter.is_end():
+                current_iter.forward_to_tag_toggle(self.found_text_tag)
+                done = current_iter.has_tag(self.found_text_tag)
+            self.stdout_textview.scroll_to_iter(current_iter, 0, False, 0.5, 0.5)
+            self.sheriff_tb.place_cursor(current_iter)
+            return True
+        elif gtk.gdk.keyval_name(event.keyval) == 'N':
+            done = False
+            while not done and not current_iter.is_start():
+                current_iter.backward_to_tag_toggle(self.found_text_tag)
+                done = current_iter.has_tag(self.found_text_tag)
+            self.stdout_textview.scroll_to_iter(current_iter, 0, False, 0.5, 0.5)
+            self.sheriff_tb.place_cursor(current_iter)
+            return True
+        return False

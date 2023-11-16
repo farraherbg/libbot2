@@ -149,6 +149,35 @@ class AddModifyCommandDialog (gtk.Dialog):
     def get_stop_time_allowed(self):
         return self.stop_time_allowed_sb.get_value()
 
+class SearchDialog(gtk.Dialog):
+    def __init__ (self, sheriff_gtk, parent):
+        # add command dialog
+        gtk.Dialog.__init__ (self, "Search text", parent,
+                gtk.DIALOG_MODAL | gtk.DIALOG_DESTROY_WITH_PARENT,
+                (gtk.STOCK_OK, gtk.RESPONSE_ACCEPT,
+                 gtk.STOCK_CANCEL, gtk.RESPONSE_REJECT))
+        self.sheriff_gtk = sheriff_gtk
+        self.resize(400, 10)
+
+        self.search_whole_text_button = gtk.CheckButton(label="Whole text")
+        self.search_whole_text_button.set_active(sheriff_gtk.cmd_console.search_whole_text)
+
+        self.vbox.add (self.search_whole_text_button)
+        self.search_whole_text_button.connect("toggled", self.button_callback, "Whole text")
+
+        self.search_entry = gtk.Entry()
+        self.vbox.add (self.search_entry)
+        def submit(entry):
+            # Send the OK response to the dialog
+            self.response(gtk.RESPONSE_ACCEPT)
+        self.search_entry.connect("activate", submit)
+        self.search_whole_text_button.show()
+        self.search_entry.show()
+        self.search_entry.grab_focus()
+
+    def button_callback(self, widget, data=None):
+        self.sheriff_gtk.cmd_console.search_whole_text = widget.get_active()
+
 class PreferencesDialog(gtk.Dialog):
     def __init__ (self, sheriff_gtk, parent):
         # add command dialog
@@ -368,6 +397,14 @@ def do_edit_script_dialog(sheriff, window, script):
         sheriff.add_script(new_script)
         break
     dlg.destroy ()
+
+def do_search_dialog(sheriff_gtk, window):
+    dlg = SearchDialog(sheriff_gtk, window)
+    dlg.search_entry.set_text(sheriff_gtk.cmd_console.current_search_text)
+    if dlg.run() == gtk.RESPONSE_ACCEPT:
+        sheriff_gtk.cmd_console.highlight_text(dlg.search_entry.get_text(), sheriff_gtk.cmd_console.current_tb)
+        sheriff_gtk.cmd_console.current_search_text = dlg.search_entry.get_text()
+    dlg.destroy()
 
 def do_preferences_dialog(sheriff_gtk, window):
     dlg = PreferencesDialog(sheriff_gtk, window)

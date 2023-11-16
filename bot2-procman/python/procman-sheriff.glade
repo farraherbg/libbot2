@@ -41,6 +41,15 @@
                       </object>
                     </child>
                     <child>
+                      <object class="GtkMenuItem" id="search_mi">
+                        <property name="visible">True</property>
+                        <property name="label" translatable="yes">Search _text</property>
+                        <property name="use_underline">True</property>
+                        <accelerator key="f" signal="activate" modifiers="GDK_CONTROL_MASK"/>
+                        <signal name="activate" handler="on_search_mi_activate"/>
+                      </object>
+                    </child>
+                    <child>
                       <object class="GtkMenuItem" id="preferences_mi">
                         <property name="visible">True</property>
                         <property name="label" translatable="yes">_Preferences</property>

@@ -189,6 +189,7 @@ class SheriffGtk(object):
         # stdout textview
         self.cmd_console = cc.SheriffCommandConsole(self.sheriff, self.lc)
         vpane.add2(self.cmd_console)
+        self.cmd_console.current_search_text = ""
 
         # status bar
         self.statusbar = self.builder.get_object("statusbar")
@@ -203,6 +204,9 @@ class SheriffGtk(object):
         self.load_settings()
 
         self.window.show_all()
+
+    def on_search_mi_activate(self, *args):
+        sd.do_search_dialog(self, self.window)
 
     def on_preferences_mi_activate(self, *args):
         sd.do_preferences_dialog(self, self.window)
@@ -241,6 +245,7 @@ class SheriffGtk(object):
             print err
             return
 
+        print("Loading config from {}".format(self.config_fname))
         self.cmds_tv.load_settings(d)
         self.cmd_console.load_settings(d)
         self.hosts_tv.load_settings(d)
